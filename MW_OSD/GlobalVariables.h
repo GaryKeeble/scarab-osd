@@ -93,6 +93,13 @@
 //#define SONAR         16//0b00010000
 
 
+#if defined (DEVELOPMENT)
+#define DEBUGDEF 1
+#else
+#define DEBUGDEF 0   
+#endif
+
+
 //General use variables
 struct {
   uint8_t tenthSec;
@@ -319,7 +326,7 @@ MWOSDVER,   // used for check              0
 0,   // GPStime                     37a
 0,   // GPSTZ +/-                   37b
 0,   // GPSTZ                       37c
-0,   // DEBUG                       37e
+DEBUGDEF,   // DEBUG                       37e
 1,   // SCROLLING LADDERS           37f
 1,   // SHOW GIMBAL ICON            37g
 1,   // SHOW VARIO                  37h

@@ -1,43 +1,3 @@
-
-/*
-NAZA for reference:
- 
- void NAZA_NewData(uint8_t c){
- uint8_t decodedMessage = NazaDecoder.decode(c);
- int8_t sattemp;
- switch (decodedMessage){
- uint8_t GPS_fix_temp;
- case NAZA_MESSAGE_GPS:
- sattemp=NazaDecoder.getNumSat();
- if (sattemp>4){
- #ifdef GPSACTIVECHECK
- timer.GPS_active=GPSACTIVECHECK;
- #endif //GPSACTIVECHECK
- GPS_numSat=NazaDecoder.getNumSat();
- GPS_coord[LAT]=(int32_t)(10000000*NazaDecoder.getLat());
- GPS_coord[LON]=(int32_t)(10000000*NazaDecoder.getLon());
- GPS_altitude=NazaDecoder.getGpsAlt();
- GPS_fix_temp=NazaDecoder.getFixType();
- GPS_numSat=NazaDecoder.getNumSat();
- GPS_speed=100*NazaDecoder.getSpeed();
- gpsvario();            
- if (GPS_fix_temp>0){
- GPS_fix=1;
- }
- GPS_NewData();
- }            
- break;
- case NAZA_MESSAGE_COMPASS:
- GPS_ground_course=10*NazaDecoder.getHeadingNc();
- int16_t MwHeading360=GPS_ground_course/10;
- if (MwHeading360>180)
- MwHeading360 = MwHeading360-360;
- MwHeading   = MwHeading360;
- break;
- }
- }
- */
-
 #define MAVLINK_MSG_ID_HEARTBEAT 0
 #define MAVLINK_MSG_ID_HEARTBEAT_MAGIC 50
 #define AVLINK_MSG_ID_HEARTBEAT_LEN 9
@@ -61,47 +21,20 @@ uint8_t mav_message_length;
 uint8_t mav_message_cmd;
 uint16_t mav_serial_checksum;
 
-
-
-void serialMAVCheck(){
-#ifdef MSPACTIVECHECK
-  timer.MSP_active=MSPACTIVECHECK; // getting something on serial port
-#endif
-  switch(mav_message_cmd) {
-  case MAVLINK_MSG_ID_HEARTBEAT:
-    break;
-  case MAVLINK_MSG_ID_VFR_HUD:
-    break;
-  case MAVLINK_MSG_ID_ATTITUDE:
-    break;
-  case MAVLINK_MSG_ID_GPS_RAW_INT:
-#ifdef GPSACTIVECHECK
-    timer.GPS_active=GPSACTIVECHECK;
-#endif //GPSACTIVECHECK
-    //    GPS_lat =serialBuffer[8]+serialBuffer[9]<<8+serialBuffer[10]<<16+serialBuffer[11]<<32;
-    //    GPS_lon =serialBuffer[12]+serialBuffer[13]<<8+serialBuffer[14]<<16+serialBuffer[15]<<32;
-    GPS_speed=serialBuffer[24]+serialBuffer[25]<<8;
-    GPS_fix=serialBuffer[28];
-    GPS_numSat=serialBuffer[29];
-    //   GPS_fix=3;
-    //   GPS_numSat=9;
-    debug[0]=GPS_speed;
-    debug[1]=GPS_fix;
-    debug[2]=GPS_numSat;
-    
-    break;
-  case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
-    break;
-  case MAVLINK_MSG_ID_SYS_STATUS:
-    //debug[0]=serialBuffer[11];
-    //debug[1]=serialBuffer[12];
-    //debug[2]=serialBuffer[1];
-    //debug[3]++;
-
-    MwVBat=serialBuffer[11]+(serialBuffer[12]<<8)/100;
-    break;
-  }
-}
+#define  LAT  0
+#define  LON  1
+#define  GPS_BAUD BAUDRATE
+uint32_t GPS_home_timer=0;
+int32_t  GPS_coord[2];
+int32_t  GPS_home[2];
+//  uint16_t GPS_ground_course = 0;                       
+int16_t  GPS_altitude_home;                            
+uint8_t  GPS_Present = 0;                             
+//  uint8_t  GPS_SerialInitialised=5;
+uint8_t  GPS_armedangleset = 0;
+uint8_t  GPS_active=5; 
+uint8_t  GPS_fix_HOME=0;
+const char satnogps_text[] PROGMEM = " NO GPS ";
 
 
 void mav_checksum(uint8_t val) {
@@ -109,6 +42,132 @@ void mav_checksum(uint8_t val) {
   tmp = val ^ mav_serial_checksum &0xFF;
   tmp ^= (tmp<<4)&0xFF;
   mav_serial_checksum = (mav_serial_checksum>>8) ^ (tmp<<8) ^ (tmp <<3) ^ (tmp>>4);  
+}
+
+
+float serialbufferfloat(uint8_t offset){
+  float f_temp;
+  byte * b = (byte *) &f_temp;
+  for(uint8_t i=0;i<4;i++){
+    b[i]=serialBuffer[offset+i];
+  }
+  return f_temp;
+}
+
+
+void serialMAVCheck(){
+  //testing only...
+  //  GPS_fix=3;
+  //  GPS_numSat=6;
+  armed=1;
+  configMode==1;
+
+  switch(mav_message_cmd) {
+  case MAVLINK_MSG_ID_HEARTBEAT:
+#ifdef MSPACTIVECHECK
+    timer.MSP_active=MSPACTIVECHECK; // getting valid MAV on serial port
+#endif
+    //    armed = (MwSensorActive & 0x80) != 0;  //armed status check
+    break;
+  case MAVLINK_MSG_ID_VFR_HUD:
+    GPS_speed=(int16_t)serialbufferfloat(4)*100;    // m/s-->cm/s 
+    GPS_altitude=(int16_t)serialbufferfloat(8);     // m-->m
+    GPS_altitude=GPS_altitude-0;
+    MwAltitude = (int32_t) GPS_altitude *100;       // m--cm gps to baro
+    MwHeading=serialBuffer[16]|serialBuffer[17]<<8; // deg (-->deg*10 if GPS heading)
+    MwVario=(int16_t)serialbufferfloat(12)*100;     // m/s-->cm/s
+
+    //debug[0]=GPS_speed;
+    //debug[1]=GPS_altitude;
+    //debug[2]=MwAltitude;
+    //debug[3]=MwVario;
+
+    break;
+  case MAVLINK_MSG_ID_ATTITUDE:
+    MwAngle[0]=(int16_t)(serialbufferfloat(4)*57296/10);     // rad-->0.1deg
+    MwAngle[1]=(int16_t)(serialbufferfloat(8)*57296/10);     // rad-->0.1deg
+    break;
+  case MAVLINK_MSG_ID_GPS_RAW_INT:
+#ifdef GPSACTIVECHECK
+    timer.GPS_active=GPSACTIVECHECK;
+#endif //GPSACTIVECHECK
+    GPS_numSat=serialBuffer[29];                                                                         
+    GPS_fix=serialBuffer[28];                                                                            
+    GPS_ground_course = (serialBuffer[26]|(serialBuffer[27]<<8))/10;
+    GPS_latitude  =(int32_t)serialBuffer[8]|(serialBuffer[9]<<8)|(serialBuffer[10]<<16)|(serialBuffer[11]<<24);    // decimal 10,000,000
+    GPS_longitude =(int32_t)serialBuffer[12]|(serialBuffer[13]<<8)|(serialBuffer[14]<<16)|(serialBuffer[15]<<24);  // decimal 10,000,000
+    debug[0]=GPS_latitude;
+    debug[1]=GPS_longitude;
+    /*   
+     if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
+     if (GPS_fix_HOME == 0){
+     GPS_reset_home_position();
+     }
+     GPS_fix_HOME=1;
+     if (!GPS_fix_HOME) {
+     GPS_distanceToHome = 0;
+     GPS_directionToHome = 0;
+     GPS_altitude = 0 ;
+     MwAltitude = 0 ;          
+     }
+     //      GPS_speed=serialBuffer[24]|(serialBuffer[25]<<8);
+     
+     //calculate distance. bearings etc
+     uint32_t dist;
+     int32_t  dir;
+     //      GPS_distance_cm_bearing(&GPS_coord[LAT],&GPS_coord[LON],&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
+     //      GPS_distanceToHome = dist/100;
+     //      GPS_directionToHome = dir/100;
+     //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
+     //      MwAltitude = (int32_t)GPS_altitude *100;
+     int16_t MwHeading360=GPS_ground_course/10;
+     if (MwHeading360>180)
+     MwHeading360 = MwHeading360-360;
+     MwHeading   = MwHeading360;
+     gpsvario(); 
+     
+     // set armed direction (review as prob not needed...
+     if (GPS_armedangleset==0)  
+     armedangle=MwHeading;
+     if (GPS_distanceToHome>GPSOSDARMDISTANCE){
+     GPS_armedangleset = 1;
+     armed=1;
+     }
+     
+     if (GPS_armedangleset==1){
+     if ((GPS_distanceToHome<GPSOSDHOMEDISTANCE)&&(GPS_speed<75)){
+     if ((GPS_home_timer+7000)>millis()){
+     }
+     else if((GPS_home_timer+22000)>millis()){
+     configPage=0;
+     armed=0;
+     }      
+     else{
+     configMode=0;
+     GPS_armedangleset=0;
+     previousarmedstatus=0;
+     }      
+     }
+     else {
+     GPS_home_timer=millis();
+     }    
+     }
+     }    
+     */
+    break;
+  case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
+    MwRssi=(uint16_t)serialBuffer[21]*1024/100;
+    for(uint8_t i=0;i<8;i++)
+      MwRcData[i] = (int16_t)(serialBuffer[4+(i*2)]|(serialBuffer[5+(i*2)]<<8));
+    handleRawRC();
+    debug[3]=MwRcData[0];
+
+    break;
+  case MAVLINK_MSG_ID_SYS_STATUS:
+    MwVBat=serialBuffer[14]|(serialBuffer[15]<<8)/100;
+    MWAmperage=serialBuffer[16]|(serialBuffer[17]<<8);
+    break;
+  }
 }
 
 
@@ -227,7 +286,13 @@ void serialMAVreceive(uint8_t c)
 
 
 
-
+void GPS_reset_home_position() {
+  GPS_home[LAT] = GPS_coord[LAT];
+  GPS_home[LON] = GPS_coord[LON];
+  GPS_altitude_home = GPS_altitude;
+  //  GPS_calc_longitude_scaling(GPS_coord[LAT]);  //need an initial value for distance and bearing calc
+  GPS_fix_HOME = 1;
+}
 
 
 

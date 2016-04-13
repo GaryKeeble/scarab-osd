@@ -6,7 +6,7 @@
 /*----------------------------------------------       Developer parameters      ----------------------------------------------------*/
 #define DEBUG         // Enable/disable option to display OSD debug values 
 //#define DEBUGMW       // Disable to prevent load Mutltiwii debug values from MSP 
-
+//#define ALWAYSARMED
 
 /*--------------------------       DEPRECATED parameters for reference only      ----------------------------------------------------*/
 
@@ -259,6 +259,8 @@
   #define MENU_ALARMS   6       //ALARMS
   #define MAXPAGE       MENU_ALARMS
   #define MAVLINK
+  #define FORCESENSORS
+  #define AMPERAGE_DIV 10
 #endif
 
 #ifdef NOCONTROLLER

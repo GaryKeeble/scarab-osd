@@ -1,0 +1,59 @@
+/*
+Protocol template:
+
+Format of support for other protocols
+protocol_init() - whatever you need to do to set up / initialise
+protocol_request() - if required call as often as you require data to be sent from FC
+protocol_parse() - hook call from serialMSPreceive
+when valid data received, the following variables can be updated.
+
+
+// Specify the sensors available
+    MwSensorPresent = read16();
+    MwSensorActive = read32();
+or:
+    #define FORCESENSORS can override MwSensorPresent 
+
+// Specify the sensors active
+    MwSensorActive=int32
+
+// RC channels... 
+    MwRcData[i] = read16(); // RC channels 0-7 
+    handleRawRC();
+
+// GPS data....
+    timer.GPS_active=GPSACTIVECHECK;
+    GPS_fix=1;
+    GPS_numSat=read8();
+    GPS_latitude = read32();
+    GPS_longitude = read32();
+    GPS_altitude = read16();
+    GPS_speed = read16();
+    GPS_distanceToHome=read16();
+    GPS_directionToHome=read16();
+    GPS_ground_course = read16();
+ 
+
+// Waypoints data...
+    GPS_waypoint_step=read8();
+
+// Pitch/Roll    
+    MwAngle[i] = read16();
+    
+// Compass
+    MwHeading = read16(); // if using compass data
+    MwHeading = GPS_ground_course/10; // if not using compass data
+
+// Baro
+    MwAltitude =read32();
+    MwVario = read16();
+ or:   
+      MwAltitude = (int32_t)GPS_altitude*100;
+      gpsvario();    
+
+// FC analgue sensors
+    MwVBat=read8();
+    pMeterSum=read16();
+    MwRssi = read16();
+    MWAmperage = read16();
+ */    

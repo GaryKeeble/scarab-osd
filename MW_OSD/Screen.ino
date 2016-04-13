@@ -353,7 +353,7 @@ void displayHorizon(int rollAngle, int pitchAngle)
 
 #ifdef HORIZON
   if (Settings[S_SCROLLING]||Settings[S_SIDEBARTOPS]){
-      if(!armed) GPS_speed=0;
+ //     if(!armed) GPS_speed=0;
   // Scrolling decoration
       if (GPS_speed > (old_GPS_speed+15)){
         sidebarsMillis = millis();
@@ -889,7 +889,7 @@ void displayNumberOfSat(void)
 void displayGPS_speed(void)
 {
   if(!GPS_fix) return;
-  if(!armed) GPS_speed=0;
+//  if(!armed) GPS_speed=0;
   uint16_t xx;
   if(!Settings[S_UNITSYSTEM])
     xx = GPS_speed * 0.036;           // From MWii cm/sec to Km/h
@@ -1523,8 +1523,6 @@ void displayConfigScreen(void)
 void displayDebug(void)
 {
 #if defined (DEBUG)||defined (DEBUGMW)
-  if(!Settings[S_DEBUG])
-    return;
  
   for(uint8_t X=0; X<4; X++) {
     ItoaPadded(debug[X], screenBuffer+2,7,0);     
