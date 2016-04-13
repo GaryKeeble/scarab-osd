@@ -54,6 +54,14 @@ float serialbufferfloat(uint8_t offset){
   return f_temp;
 }
 
+int32_t serialbufferint(uint8_t offset){
+  int32_t i_temp;
+  byte * b = (byte *) &i_temp;
+  for(uint8_t i=0;i<4;i++){
+    b[i]=serialBuffer[offset+i];
+  }
+  return i_temp;
+}
 
 void serialMAVCheck(){
   //testing only...
@@ -68,6 +76,11 @@ void serialMAVCheck(){
     timer.MSP_active=MSPACTIVECHECK; // getting valid MAV on serial port
 #endif
     //    armed = (MwSensorActive & 0x80) != 0;  //armed status check
+    debug[0]=armed;
+    //debug[1]=GPS_altitude;
+    //debug[2]=MwAltitude;
+    //debug[3]=MwVario;
+
     break;
   case MAVLINK_MSG_ID_VFR_HUD:
     GPS_speed=(int16_t)serialbufferfloat(4)*100;    // m/s-->cm/s 
@@ -76,12 +89,6 @@ void serialMAVCheck(){
     MwAltitude = (int32_t) GPS_altitude *100;       // m--cm gps to baro
     MwHeading=serialBuffer[16]|serialBuffer[17]<<8; // deg (-->deg*10 if GPS heading)
     MwVario=(int16_t)serialbufferfloat(12)*100;     // m/s-->cm/s
-
-    //debug[0]=GPS_speed;
-    //debug[1]=GPS_altitude;
-    //debug[2]=MwAltitude;
-    //debug[3]=MwVario;
-
     break;
   case MAVLINK_MSG_ID_ATTITUDE:
     MwAngle[0]=(int16_t)(serialbufferfloat(4)*57296/10);     // rad-->0.1deg
@@ -94,10 +101,9 @@ void serialMAVCheck(){
     GPS_numSat=serialBuffer[29];                                                                         
     GPS_fix=serialBuffer[28];                                                                            
     GPS_ground_course = (serialBuffer[26]|(serialBuffer[27]<<8))/10;
-    GPS_latitude  =(int32_t)serialBuffer[8]|(serialBuffer[9]<<8)|(serialBuffer[10]<<16)|(serialBuffer[11]<<24);    // decimal 10,000,000
-    GPS_longitude =(int32_t)serialBuffer[12]|(serialBuffer[13]<<8)|(serialBuffer[14]<<16)|(serialBuffer[15]<<24);  // decimal 10,000,000
-    debug[0]=GPS_latitude;
-    debug[1]=GPS_longitude;
+
+    GPS_latitude =serialbufferint(8);    // decimal 10,000,000
+    GPS_longitude=serialbufferint(12);  // decimal 10,000,000
     /*   
      if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
      if (GPS_fix_HOME == 0){
@@ -160,8 +166,6 @@ void serialMAVCheck(){
     for(uint8_t i=0;i<8;i++)
       MwRcData[i] = (int16_t)(serialBuffer[4+(i*2)]|(serialBuffer[5+(i*2)]<<8));
     handleRawRC();
-    debug[3]=MwRcData[0];
-
     break;
   case MAVLINK_MSG_ID_SYS_STATUS:
     MwVBat=serialBuffer[14]|(serialBuffer[15]<<8)/100;
@@ -293,6 +297,7 @@ void GPS_reset_home_position() {
   //  GPS_calc_longitude_scaling(GPS_coord[LAT]);  //need an initial value for distance and bearing calc
   GPS_fix_HOME = 1;
 }
+
 
 
 
