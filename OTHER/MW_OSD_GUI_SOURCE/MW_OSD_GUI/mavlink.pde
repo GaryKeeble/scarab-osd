@@ -109,14 +109,14 @@ void SendCommandMAVLINK(int cmd){
       mav_headserial(MAVLINK_MSG_ID_GPS_RAW_INT);
       mav_serialize32(0);
       mav_serialize32(0); // 2nd - make up to 64 bit
-      mav_serialize8(mavdata_gps_fixtype&0xFF);  //0-1: no fix, 2: 2D fix, 3: 3D fix, 4: DGPS, 5: RTK
-      mav_serialize32BS(mavdata_gps_lat); //lat
-      mav_serialize32BS(mavdata_gps_lon); //lon
+      mav_serialize32(mavdata_gps_lat); //lat
+      mav_serialize32(mavdata_gps_lon); //lon
       mav_serialize32(0);
       mav_serialize16(0);
       mav_serialize16(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
+      mav_serialize16(mavdata_groundspeed);
+      mav_serialize16(mavdata_heading);
+      mav_serialize8(mavdata_gps_fixtype&0xFF);  //0-1: no fix, 2: 2D fix, 3: 3D fix, 4: DGPS, 5: RTK
       mav_serialize8(mavdata_gps_sats); //sats     
       mav_tailserial();
       PortIsWriting = false;
@@ -127,15 +127,15 @@ void SendCommandMAVLINK(int cmd){
       mav_magic=MAVLINK_MSG_ID_RC_CHANNELS_RAW_MAGIC;
       mav_headserial(MAVLINK_MSG_ID_RC_CHANNELS_RAW);
       mav_serialize32(0);
-      mav_serialize8(1);
       mav_serialize16(int(Pitch_Roll.arrayValue()[0])); //CH0
       mav_serialize16(int(Pitch_Roll.arrayValue()[1]));
       mav_serialize16(int(Throttle_Yaw.arrayValue()[0]));
       mav_serialize16(int(Throttle_Yaw.arrayValue()[1]));
-      mav_serialize16(1500);
-      mav_serialize16(1500);
-      mav_serialize16(0);
-      mav_serialize16(0);  //CH7
+      mav_serialize16(1100);
+      mav_serialize16(1100);
+      mav_serialize16(1100);
+      mav_serialize16(1100);  //CH7
+      mav_serialize8(1);
       mav_serialize8(mavdata_rssi);  //RSSI
       mav_tailserial();
       PortIsWriting = false;
@@ -151,13 +151,13 @@ void SendCommandMAVLINK(int cmd){
       mav_serialize16(0);
       mav_serialize16(mavdata_voltage); // units mv
       mav_serialize16(mavdata_amperage); // units 10ma
+      mav_serialize16(0);
+      mav_serialize16(0);
+      mav_serialize16(0);
+      mav_serialize16(0);
+      mav_serialize16(0);
+      mav_serialize16(0);
       mav_serialize8(mavdata_remaining); //% remaining
-      mav_serialize16(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
       mav_tailserial();
       PortIsWriting = false;
     break;
@@ -238,16 +238,6 @@ void mav_serialize32(int a) {
 }
 
 
-void mav_serialize32BS(int a) {
-  if (str(a)!=null ){
-    mav_serialize8((a>> 8) & 0xFF);
-    mav_serialize8((a>>16) & 0xFF);
-    mav_serialize8((a>>24) & 0xFF);
-    mav_serialize8((a    ) & 0xFF);
-  } 
-}
-
-
 void mav_serializefloat(float b) {
   int a = Float.floatToIntBits(b);
   if (str(a)!=null ){
@@ -255,16 +245,6 @@ void mav_serializefloat(float b) {
     mav_serialize8((a>> 8) & 0xFF);
     mav_serialize8((a>>16) & 0xFF);
     mav_serialize8((a>>24) & 0xFF);
-  } 
-}
-
-
-void mav_serialize32BE(int a) {
-  if (str(a)!=null ){
-    mav_serialize8((a>>24) & 0xFF);
-    mav_serialize8((a>>16) & 0xFF);
-    mav_serialize8((a>>8) & 0xFF);
-    mav_serialize8((a) & 0xFF);
   } 
 }
 
@@ -361,13 +341,11 @@ void syncmav(){
 //  System.out.println("Vario:"+ mavdata_climbrate);
 
   mavdata_throttle=int(map(Throttle_Yaw.arrayValue()[1],1000,2000,0,100));
-  mavdata_rssi=int(sMRSSI/10);
+  mavdata_rssi=int((sMRSSI*100)/1023);
   mavdata_gps_fixtype=int(SGPS_FIX.arrayValue()[0]);
   mavdata_gps_sats=int(SGPS_numSat.value());
   mavdata_gps_lat=GPSstartlat;
   mavdata_gps_lon=GPSstartlon;
-  mavdata_gps_lat=100000000;
-  mavdata_gps_lat=-100000000;
 //  System.out.println("Lat:"+ mavdata_gps_lat);
 //  System.out.println("Lon:"+ mavdata_gps_lon);
   mavdata_voltage=int(sVBat * 1000);

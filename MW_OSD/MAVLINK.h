@@ -104,7 +104,7 @@ void serialMAVCheck(){
 
     GPS_latitude =serialbufferint(8);    // decimal 10,000,000
     GPS_longitude=serialbufferint(12);  // decimal 10,000,000
-    /*   
+//   /*   
      if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
      if (GPS_fix_HOME == 0){
      GPS_reset_home_position();
@@ -121,9 +121,9 @@ void serialMAVCheck(){
      //calculate distance. bearings etc
      uint32_t dist;
      int32_t  dir;
-     //      GPS_distance_cm_bearing(&GPS_coord[LAT],&GPS_coord[LON],&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
-     //      GPS_distanceToHome = dist/100;
-     //      GPS_directionToHome = dir/100;
+           GPS_distance_cm_bearing(&GPS_coord[LAT],&GPS_coord[LON],&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
+           GPS_distanceToHome = dist/100;
+           GPS_directionToHome = dir/100;
      //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
      //      MwAltitude = (int32_t)GPS_altitude *100;
      int16_t MwHeading360=GPS_ground_course/10;
@@ -159,16 +159,16 @@ void serialMAVCheck(){
      }    
      }
      }    
-     */
+   //  */
     break;
   case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
-    MwRssi=(uint16_t)serialBuffer[21]*1024/100;
+    MwRssi=(uint16_t)(((103)*serialBuffer[21])/10);
     for(uint8_t i=0;i<8;i++)
       MwRcData[i] = (int16_t)(serialBuffer[4+(i*2)]|(serialBuffer[5+(i*2)]<<8));
     handleRawRC();
     break;
   case MAVLINK_MSG_ID_SYS_STATUS:
-    MwVBat=serialBuffer[14]|(serialBuffer[15]<<8)/100;
+    MwVBat=(serialBuffer[14]|(serialBuffer[15]<<8))/100;
     MWAmperage=serialBuffer[16]|(serialBuffer[17]<<8);
     break;
   }
@@ -294,8 +294,27 @@ void GPS_reset_home_position() {
   GPS_home[LAT] = GPS_coord[LAT];
   GPS_home[LON] = GPS_coord[LON];
   GPS_altitude_home = GPS_altitude;
-  //  GPS_calc_longitude_scaling(GPS_coord[LAT]);  //need an initial value for distance and bearing calc
+  GPS_calc_longitude_scaling(GPS_coord[LAT]);  //need an initial value for distance and bearing calc
   GPS_fix_HOME = 1;
+}
+
+  static float GPS_scaleLonDown; // this is used to offset the shrinking longitude as we go towards the poles
+
+////////////////////////////////////////////////////////////////////////////////////
+// Get distance between two points in cm
+// Get bearing from pos1 to pos2, returns an 1deg = 100 precision
+void GPS_distance_cm_bearing(int32_t* lat1, int32_t* lon1, int32_t* lat2, int32_t* lon2,uint32_t* dist, int32_t* bearing) {
+  float dLat = *lat2 - *lat1;                                    // difference of latitude in 1/10 000 000 degrees
+  float dLon = (float)(*lon2 - *lon1) * GPS_scaleLonDown;
+  *dist = sqrt(sq(dLat) + sq(dLon)) * 1.113195;
+  
+  *bearing = 9000.0f + atan2(-dLat, dLon) * 5729.57795f;      //Convert the output redians to 100xdeg
+  if (*bearing < 0) *bearing += 36000;
+}
+
+void GPS_calc_longitude_scaling(int32_t lat) {
+  float rads       = (abs((float)lat) / 10000000.0) * 0.0174532925;
+  GPS_scaleLonDown = cos(rads);
 }
 
 
