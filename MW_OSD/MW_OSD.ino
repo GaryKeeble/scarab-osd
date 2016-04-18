@@ -28,7 +28,7 @@ This work is based on the following open source work :-
 */
 
 //------------------------------------------------------------------------
-#define DEVELOPMENT // to enable development checking and set debug[x] value
+#define DEVELOPMENT // to force layout 0, set debug eeprombit = 1
 //#define MEMCHECK 3  // to enable memory checking and set debug[x] value. Requires DEVELOPMENT to be enabled
 #if 1
 __asm volatile ("nop");
@@ -214,7 +214,7 @@ void loop()
   if (flags.reset){
     resetFunc();
   }
-  #if defined (MEMCHECK) && defined (DEVELOPMENT)
+  #if defined (MEMCHECK)
     debug[MEMCHECK] = UntouchedStack();
   #endif
 

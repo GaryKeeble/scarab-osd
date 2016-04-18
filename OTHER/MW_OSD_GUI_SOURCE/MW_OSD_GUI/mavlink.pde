@@ -16,7 +16,6 @@ int mavdata_amperage=0;
 int mavdata_remaining=0;
 int mavdata_sensors=0;
 
-
 int mav_sequence=0;
 int mavmillis=0;
 int mav_magic=50;
@@ -53,9 +52,8 @@ void SendCommandMAVLINK(int cmd){
   int type=1; ///< Type of the MAV 1 - plane / 2 copter)
   int autopilot=3; ///< Autopilot type / class. defined in MAV_AUTOPILOT ENUM
   int base_mode=mav_base_mode; ///< System mode bitfield, see MAV_MODE_FLAGS ENUM in mavlink/include/mavlink_types.h
-//80=armed ??
   int system_status=4; ///< System status flag, see MAV_STATE ENUM
-  int mavlink_version=255; ///< MAVLink version, not writable by user, gets added by protocol because of magic data type: uint8_t_mavlink_version
+  int mavlink_version=3; ///< MAVLink version, not writable by user, gets added by protocol because of magic data type: uint8_t_mavlink_version
   
   int icmd = (int)(cmd&0xFF);
   switch(icmd) {
@@ -111,12 +109,12 @@ void SendCommandMAVLINK(int cmd){
       mav_serialize32(0); // 2nd - make up to 64 bit
       mav_serialize32(mavdata_gps_lat); //lat
       mav_serialize32(mavdata_gps_lon); //lon
-      mav_serialize32(0);
-      mav_serialize16(0);
-      mav_serialize16(0);
+      mav_serialize32(0);//alt
+      mav_serialize16(0);//eph
+      mav_serialize16(0);//epv
       mav_serialize16(mavdata_groundspeed);
       mav_serialize16(mavdata_heading);
-      mav_serialize8(mavdata_gps_fixtype&0xFF);  //0-1: no fix, 2: 2D fix, 3: 3D fix, 4: DGPS, 5: RTK
+      mav_serialize8(3);  //0-1: no fix, 2: 2D fix, 3: 3D fix, 4: DGPS, 5: RTK
       mav_serialize8(mavdata_gps_sats); //sats     
       mav_tailserial();
       PortIsWriting = false;
@@ -265,23 +263,16 @@ void process_mav_send(){
   syncmav();
   if ((int(SimControlToggle.getValue())!=0)&&(Simtype==2)) {
     if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_HEARTBEAT);
+    if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_SYS_STATUS); 
     MSP_sendOrder++;
     switch(MSP_sendOrder) {
       case 1:
         if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_ATTITUDE);
-        break;
-      case 2:
         if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_VFR_HUD);
         break;
-      case 3:
+      case 2:
         if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_GPS_RAW_INT); 
-        break;
-      case 4:
         if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_RC_CHANNELS_RAW);
-        break;
-      case 5:
-        if (init_com==1)SendCommandMAVLINK(MAVLINK_MSG_ID_SYS_STATUS); 
-        MSP_sendOrder=0;
         break;
       default:  
         MSP_sendOrder=0;
@@ -292,11 +283,37 @@ void process_mav_send(){
 
 void syncmav(){
 
+  int SimModebits = 0;
+  int SimBitCounter = 1;
+  for (int i=0; i<boxnames.length; i++) { 
+      if(toggleModeItems[i].getValue() > 0) SimModebits |= SimBitCounter;
+      SimBitCounter += SimBitCounter;
+  }
+  
+  
 // armed 
   mav_base_mode=0;
   if(toggleModeItems[0].getValue()> 0){ //armed
     mav_base_mode |=1<<7;
   }
+
+// sensors active 
+//  mav_base_mode=0;
+
+  if((SimModebits&mode_stable) >0){ //stab
+      mavdata_sensors|=(1<<1);
+    }
+
+  if((SimModebits&mode_baro) >0){ //baro
+      mavdata_sensors|=(1<<3);
+      mavdata_sensors|=(1<<4);
+    }
+
+  if((SimModebits&mode_mag) >0){ //mag
+      mavdata_sensors|=(1<<2);
+    }
+  
+
 
 // flight mode
   mav_custom_mode=0;
@@ -310,24 +327,9 @@ void syncmav(){
     mav_custom_mode =1; //circle
   }
   
-// sensors active
-  mavdata_sensors=0;
-  if(toggleModeItems[1].getValue()> 0){//gyro 0
-    mavdata_sensors |=1<<1;
-  }
-  if(toggleModeItems[1].getValue()> 0){//acc 1
-    mavdata_sensors |=1<<1;
-  }
-  if(toggleModeItems[3].getValue()> 0){//mag 2
-    mavdata_sensors |=1<<2;
-  }
-  if(toggleModeItems[4].getValue()> 0){//baro 3      
-    mavdata_sensors |=1<<3;
-  }
   //for others https://github.com/geeksville/arduleader/blob/master/thirdparty/org.mavlink.library/generated/org/mavlink/messages/MAV_SYS_STATUS_SENSOR.java 
-  
-  
-  
+
+ 
   mavdata_roll=radians(int(MW_Pitch_Roll.arrayValue()[0]));
   mavdata_roll= -mavdata_roll;
   mavdata_pitch=radians(int(MW_Pitch_Roll.arrayValue()[1]));
@@ -343,6 +345,9 @@ void syncmav(){
   mavdata_throttle=int(map(Throttle_Yaw.arrayValue()[1],1000,2000,0,100));
   mavdata_rssi=int((sMRSSI*100)/1023);
   mavdata_gps_fixtype=int(SGPS_FIX.arrayValue()[0]);
+  if (mavdata_gps_fixtype>1){
+      mavdata_gps_fixtype=3;
+  }
   mavdata_gps_sats=int(SGPS_numSat.value());
   mavdata_gps_lat=GPSstartlat;
   mavdata_gps_lon=GPSstartlon;

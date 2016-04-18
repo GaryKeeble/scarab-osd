@@ -1520,8 +1520,13 @@ void displayConfigScreen(void)
 
 
 
-void displayDebug(void)
-{
+void displayDebug(void){
+
+#if defined (DEBUG)||defined (DEBUGMW)
+//  #undef DEBUG
+  #undef DEBUGMW
+#endif
+  
 #if defined (DEBUG)||defined (DEBUGMW)
  
   for(uint8_t X=0; X<4; X++) {

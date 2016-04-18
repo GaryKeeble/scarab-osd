@@ -67,16 +67,26 @@ void serialMAVCheck(){
   //testing only...
   //  GPS_fix=3;
   //  GPS_numSat=6;
-  armed=1;
+//  armed=1;
   configMode==1;
+  uint32_t mav_sensors;
 
   switch(mav_message_cmd) {
   case MAVLINK_MSG_ID_HEARTBEAT:
 #ifdef MSPACTIVECHECK
     timer.MSP_active=MSPACTIVECHECK; // getting valid MAV on serial port
 #endif
-    //    armed = (MwSensorActive & 0x80) != 0;  //armed status check
-    debug[0]=armed;
+    if (serialBuffer[6]&(1<<7)){ //armed
+      MwSensorActive|=(1<<0);
+      armed=1;
+    }
+    else{
+      armed=0;
+      GPS_fix_HOME=0;
+    }
+//    armed = (MwSensorActive & mode.armed) != 0;  // Need to revisit mode bits to enable other sensors
+
+    //debug[0]=armed;
     //debug[1]=GPS_altitude;
     //debug[2]=MwAltitude;
     //debug[3]=MwVario;
@@ -85,7 +95,7 @@ void serialMAVCheck(){
   case MAVLINK_MSG_ID_VFR_HUD:
     GPS_speed=(int16_t)serialbufferfloat(4)*100;    // m/s-->cm/s 
     GPS_altitude=(int16_t)serialbufferfloat(8);     // m-->m
-    GPS_altitude=GPS_altitude-0;
+    GPS_altitude=GPS_altitude-GPS_altitude_home;
     MwAltitude = (int32_t) GPS_altitude *100;       // m--cm gps to baro
     MwHeading=serialBuffer[16]|serialBuffer[17]<<8; // deg (-->deg*10 if GPS heading)
     MwVario=(int16_t)serialbufferfloat(12)*100;     // m/s-->cm/s
@@ -104,62 +114,41 @@ void serialMAVCheck(){
 
     GPS_latitude =serialbufferint(8);    // decimal 10,000,000
     GPS_longitude=serialbufferint(12);  // decimal 10,000,000
-//   /*   
-     if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
-     if (GPS_fix_HOME == 0){
-     GPS_reset_home_position();
-     }
-     GPS_fix_HOME=1;
-     if (!GPS_fix_HOME) {
-     GPS_distanceToHome = 0;
-     GPS_directionToHome = 0;
-     GPS_altitude = 0 ;
-     MwAltitude = 0 ;          
-     }
-     //      GPS_speed=serialBuffer[24]|(serialBuffer[25]<<8);
-     
-     //calculate distance. bearings etc
-     uint32_t dist;
-     int32_t  dir;
-           GPS_distance_cm_bearing(&GPS_coord[LAT],&GPS_coord[LON],&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
-           GPS_distanceToHome = dist/100;
-           GPS_directionToHome = dir/100;
-     //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
-     //      MwAltitude = (int32_t)GPS_altitude *100;
-     int16_t MwHeading360=GPS_ground_course/10;
-     if (MwHeading360>180)
-     MwHeading360 = MwHeading360-360;
-     MwHeading   = MwHeading360;
-     gpsvario(); 
-     
-     // set armed direction (review as prob not needed...
-     if (GPS_armedangleset==0)  
-     armedangle=MwHeading;
-     if (GPS_distanceToHome>GPSOSDARMDISTANCE){
-     GPS_armedangleset = 1;
-     armed=1;
-     }
-     
-     if (GPS_armedangleset==1){
-     if ((GPS_distanceToHome<GPSOSDHOMEDISTANCE)&&(GPS_speed<75)){
-     if ((GPS_home_timer+7000)>millis()){
-     }
-     else if((GPS_home_timer+22000)>millis()){
-     configPage=0;
-     armed=0;
-     }      
-     else{
-     configMode=0;
-     GPS_armedangleset=0;
-     previousarmedstatus=0;
-     }      
-     }
-     else {
-     GPS_home_timer=millis();
-     }    
-     }
-     }    
-   //  */
+       
+      debug[0]=GPS_latitude;
+      debug[1]=GPS_longitude;
+      debug[2]=GPS_home[LAT];
+//      debug[3]=GPS_home[LON];
+      debug[3]=GPS_fix;
+      
+    if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
+      if (GPS_fix_HOME == 0){
+        GPS_reset_home_position();
+      }
+//      GPS_fix_HOME=1;
+      if (!GPS_fix_HOME) {
+        GPS_distanceToHome = 0;
+        GPS_directionToHome = 0;
+        GPS_altitude = 0 ;
+        MwAltitude = 0 ;          
+      }
+
+      //calculate distance. bearings etc
+      uint32_t dist;
+      int32_t  dir;
+      
+      GPS_distance_cm_bearing(&GPS_latitude,&GPS_longitude,&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
+      GPS_distanceToHome = dist/100;
+      GPS_directionToHome = dir/100;
+      //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
+      //      MwAltitude = (int32_t)GPS_altitude *100;
+      int16_t MwHeading360=GPS_ground_course/10;
+      if (MwHeading360>180)
+        MwHeading360 = MwHeading360-360;
+      MwHeading   = MwHeading360;
+      gpsvario(); 
+    }    
+    
     break;
   case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
     MwRssi=(uint16_t)(((103)*serialBuffer[21])/10);
@@ -168,6 +157,27 @@ void serialMAVCheck(){
     handleRawRC();
     break;
   case MAVLINK_MSG_ID_SYS_STATUS:
+
+
+//    armed = (MwSensorActive & mode.armed) != 0;
+
+    mode.armed  = 0;
+    mode.stable = 1;
+    mode.baro   = 2;
+    mode.mag    = 4;
+
+    MwSensorActive|=0x00000001;
+    mav_sensors = serialbufferint(4);
+    if (mav_sensors&(1<<1)) //acc
+      MwSensorActive|=(1<<1);
+    if (mav_sensors&(1<<2)) //ac
+      MwSensorActive|=(1<<1);
+    if (mav_sensors&(1<<3)) //baro1
+      MwSensorActive|=(1<<2);
+    if (mav_sensors&(1<<4)) //baro2
+      MwSensorActive|=(1<<2);
+    if (mav_sensors&(1<<4)) //mag
+      MwSensorActive|=(1<<3);
     MwVBat=(serialBuffer[14]|(serialBuffer[15]<<8))/100;
     MWAmperage=serialBuffer[16]|(serialBuffer[17]<<8);
     break;
@@ -291,14 +301,14 @@ void serialMAVreceive(uint8_t c)
 
 
 void GPS_reset_home_position() {
-  GPS_home[LAT] = GPS_coord[LAT];
-  GPS_home[LON] = GPS_coord[LON];
+  GPS_home[LAT] = GPS_latitude;
+  GPS_home[LON] = GPS_longitude;
   GPS_altitude_home = GPS_altitude;
   GPS_calc_longitude_scaling(GPS_coord[LAT]);  //need an initial value for distance and bearing calc
   GPS_fix_HOME = 1;
 }
 
-  static float GPS_scaleLonDown; // this is used to offset the shrinking longitude as we go towards the poles
+static float GPS_scaleLonDown; // this is used to offset the shrinking longitude as we go towards the poles
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Get distance between two points in cm
@@ -307,7 +317,7 @@ void GPS_distance_cm_bearing(int32_t* lat1, int32_t* lon1, int32_t* lat2, int32_
   float dLat = *lat2 - *lat1;                                    // difference of latitude in 1/10 000 000 degrees
   float dLon = (float)(*lon2 - *lon1) * GPS_scaleLonDown;
   *dist = sqrt(sq(dLat) + sq(dLon)) * 1.113195;
-  
+
   *bearing = 9000.0f + atan2(-dLat, dLon) * 5729.57795f;      //Convert the output redians to 100xdeg
   if (*bearing < 0) *bearing += 36000;
 }
@@ -316,6 +326,9 @@ void GPS_calc_longitude_scaling(int32_t lat) {
   float rads       = (abs((float)lat) / 10000000.0) * 0.0174532925;
   GPS_scaleLonDown = cos(rads);
 }
+
+
+
 
 
 

@@ -259,8 +259,9 @@
   #define MENU_ALARMS   6       //ALARMS
   #define MAXPAGE       MENU_ALARMS
   #define MAVLINK
-  #define FORCESENSORS
+  #define SENSORS
   #define AMPERAGE_DIV 10
+  #define FORCESENSORS
 #endif
 
 #ifdef NOCONTROLLER

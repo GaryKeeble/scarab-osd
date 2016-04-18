@@ -656,6 +656,9 @@ void ShowLatLon(){
     String latsign="N";
     if (t1<0) latsign="S";
     lat = " "+t1;
+    while (lat.length()<9){
+      lat+=" ";
+    }
     lat=lat.substring(0,9);
     lat=lat+latsign;
 
@@ -667,6 +670,9 @@ void ShowLatLon(){
       t2=-t2;
     }
     lon = " "+t2;
+    while (lon.length()<9){
+      lon+=" ";
+    }
     lon=lon.substring(0,9);
     lon=lon+lonsign;
 
