@@ -144,7 +144,7 @@ void SendCommandMAVLINK(int cmd){
       mav_magic=MAVLINK_MSG_ID_SYS_STATUS_MAGIC;
       mav_headserial(MAVLINK_MSG_ID_SYS_STATUS);
       mav_serialize32(0);
-      mav_serialize32(mavdata_sensors);
+      mav_serialize32(mavdata_sensors); //mavdata_sensors
       mav_serialize32(0);
       mav_serialize16(0);
       mav_serialize16(mavdata_voltage); // units mv
@@ -298,7 +298,7 @@ void syncmav(){
   }
 
 // sensors active 
-//  mav_base_mode=0;
+  mavdata_sensors=0;
 
   if((SimModebits&mode_stable) >0){ //stab
       mavdata_sensors|=(1<<1);

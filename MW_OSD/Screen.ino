@@ -1523,7 +1523,7 @@ void displayConfigScreen(void)
 void displayDebug(void){
 
 #if defined (DEBUG)||defined (DEBUGMW)
-//  #undef DEBUG
+  #undef DEBUG
   #undef DEBUGMW
 #endif
   
