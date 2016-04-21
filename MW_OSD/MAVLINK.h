@@ -24,7 +24,7 @@ uint8_t  mav_message_cmd;
 uint16_t mav_serial_checksum;
 int32_t  GPS_home[2];
 int16_t  GPS_altitude_home;                            
-uint8_t  GPS_fix_HOME=0;
+uint8_t  GPS_fix_HOME;
 float    GPS_scaleLonDown;
 
 
@@ -76,8 +76,7 @@ void GPS_reset_home_position() {
   GPS_home[LAT] = GPS_latitude;
   GPS_home[LON] = GPS_longitude;
   GPS_altitude_home = GPS_altitude;
-  GPS_calc_longitude_scaling(GPS_home[LAT]);
-  GPS_fix_HOME = 1;
+//  GPS_calc_longitude_scaling(GPS_home[LAT]);
 }
 
 
@@ -85,14 +84,51 @@ void serialMAVCheck(){
 #ifdef MSPACTIVECHECK
   timer.MSP_active=MSPACTIVECHECK; // getting valid MAV on serial port
 #endif //MSPACTIVECHECK
-
-    switch(mav_message_cmd) {
+  int16_t MwHeading360;
+  uint8_t apm_mav_type=0;
+  uint8_t osd_mode=serialbufferint(0);
+  String mode_str;
+  switch(mav_message_cmd) {
   case MAVLINK_MSG_ID_HEARTBEAT:
     mode.armed      = (1<<0);
     mode.gpshome    = (1<<4);
     mode.gpshold    = (1<<5);
     mode.gpsmission = (1<<6);
     MwSensorActive&=0xFFFFFF8E;
+    apm_mav_type=serialBuffer[4];   
+        if (apm_mav_type == 2){ //ArduCopter MultiRotor or ArduCopter Heli
+        if (osd_mode == 0)       mode_str = "stab"; //Stabilize: hold level position
+        else if (osd_mode == 1)  mode_str = "acro"; //Acrobatic: rate control
+        else if (osd_mode == 2)  mode_str = "alth"; //Altitude Hold: auto control
+        else if (osd_mode == 3)  mode_str = "auto"; //Auto: auto control
+        else if (osd_mode == 4)  mode_str = "guid"; //Guided: auto control
+        else if (osd_mode == 5)  mode_str = "loit"; //Loiter: hold a single location
+        else if (osd_mode == 6)  mode_str = "retl"; //Return to Launch: auto control
+        else if (osd_mode == 7)  mode_str = "circ"; //Circle: auto control
+        else if (osd_mode == 8)  mode_str = "posi"; //Position: auto control
+        else if (osd_mode == 9)  mode_str = "land"; //Land:: auto control
+        else if (osd_mode == 10) mode_str = "oflo"; //OF_Loiter: hold a single location using optical flow sensor
+        else if (osd_mode == 11) mode_str = "drif"; //Drift mode: 
+        else if (osd_mode == 13) mode_str = "sprt"; //Sport: earth frame rate control
+        else if (osd_mode == 14) mode_str = "flip"; //Flip: flip the vehicle on the roll axis
+        else if (osd_mode == 15) mode_str = "atun"; //Auto Tune: autotune the vehicle's roll and pitch gains
+        else if (osd_mode == 16) mode_str = "hybr"; //Hybrid: position hold with manual override
+    } else if(apm_mav_type == 1){ //ArduPlane
+        if (osd_mode == 0)       mode_str = "manu"; //Manual
+        else if (osd_mode == 1)  mode_str = "circ"; //Circle
+        else if (osd_mode == 2)  mode_str = "stab"; //Stabilize
+        else if (osd_mode == 3)  mode_str = "trng"; //Training
+        else if (osd_mode == 4)  mode_str = "acro"; //Acro
+        else if (osd_mode == 5)  mode_str = "fbwa"; //Fly_By_Wire_A
+        else if (osd_mode == 6)  mode_str = "fbwb"; //Fly_By_Wire_B
+        else if (osd_mode == 7)  mode_str = "crui"; //Cruise
+        else if (osd_mode == 8)  mode_str = "atun"; //Auto Tune
+        else if (osd_mode == 10) mode_str = "auto"; //Auto
+        else if (osd_mode == 11) mode_str = "retl"; //Return to Launch
+        else if (osd_mode == 12) mode_str = "loit"; //Loiter
+        else if (osd_mode == 15) mode_str = "guid"; //Guided
+        else if (osd_mode == 16) mode_str = "init"; //Initializing
+    }
     if (serialbufferint(0)==11)      //RTH
       MwSensorActive|=(1<<4);
     if (serialbufferint(0)==1)       //HOLD
@@ -111,9 +147,16 @@ void serialMAVCheck(){
   case MAVLINK_MSG_ID_VFR_HUD:
     GPS_speed=(int16_t)serialbufferfloat(4)*100;    // m/s-->cm/s 
     GPS_altitude=(int16_t)serialbufferfloat(8);     // m-->m
-    GPS_altitude=GPS_altitude-GPS_altitude_home;
+    if (GPS_fix_HOME == 0){
+      GPS_reset_home_position();
+    }
+    GPS_altitude=GPS_altitude - GPS_altitude_home;
     MwAltitude = (int32_t) GPS_altitude *100;       // m--cm gps to baro
     MwHeading=serialBuffer[16]|serialBuffer[17]<<8; // deg (-->deg*10 if GPS heading)
+    MwHeading360=MwHeading;
+    if (MwHeading360>180)
+      MwHeading360 = MwHeading360-360;
+    MwHeading   = MwHeading360;
     MwVario=(int16_t)serialbufferfloat(12)*100;     // m/s-->cm/s
     break;
   case MAVLINK_MSG_ID_ATTITUDE:
@@ -130,16 +173,6 @@ void serialMAVCheck(){
     GPS_latitude =serialbufferint(8);
     GPS_longitude=serialbufferint(12);
     if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX)) {
-      if (GPS_fix_HOME == 0){
-        GPS_reset_home_position();
-      }
-      if (!GPS_fix_HOME) {
-        GPS_distanceToHome = 0;
-        GPS_directionToHome = 0;
-        GPS_altitude = 0 ;
-        MwAltitude = 0 ;          
-      }
-
       uint32_t dist;
       int32_t  dir;
       GPS_distance_cm_bearing(&GPS_latitude,&GPS_longitude,&GPS_home[LAT],&GPS_home[LON],&dist,&dir);
@@ -147,12 +180,12 @@ void serialMAVCheck(){
       GPS_directionToHome = dir/100;
       //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
       //      MwAltitude = (int32_t)GPS_altitude *100;
-      int16_t MwHeading360=GPS_ground_course/10;
-      if (MwHeading360>180)
-        MwHeading360 = MwHeading360-360;
-      MwHeading   = MwHeading360;
-      gpsvario(); 
-    }    
+//      int16_t MwHeading360=GPS_ground_course/10;
+//      if (MwHeading360>180)
+//        MwHeading360 = MwHeading360-360;
+ //     MwHeading   = MwHeading360;
+//      gpsvario(); 
+    } 
     break;
   case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
     MwRssi=(uint16_t)(((103)*serialBuffer[21])/10);
@@ -176,6 +209,16 @@ void serialMAVCheck(){
     MwVBat=(serialBuffer[14]|(serialBuffer[15]<<8))/100;
     MWAmperage=serialBuffer[16]|(serialBuffer[17]<<8);
     break;
+  }
+  if ((GPS_fix>2) && (GPS_numSat >= MINSATFIX) && armed){
+    GPS_fix_HOME = 1;
+  }
+  else{
+    GPS_altitude = 0 ;
+    MwAltitude = 0 ;          
+    GPS_distanceToHome = 0;
+    GPS_directionToHome = 0;
+    GPS_fix_HOME = 0;
   }
 }
 
@@ -292,6 +335,16 @@ void serialMAVreceive(uint8_t c)
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

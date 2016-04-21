@@ -4,9 +4,10 @@
 /*--------------------------       advanced parameters      ----------------------------------------------------*/
 
 /*----------------------------------------------       Developer parameters      ----------------------------------------------------*/
-#define DEBUG         // Enable/disable option to display OSD debug values 
+//#define DEBUG         // Enable/disable option to display OSD debug values 
 //#define DEBUGMW       // Disable to prevent load Mutltiwii debug values from MSP 
 //#define ALWAYSARMED
+//#define DEVELOPMENT   // to force layout 0, set debug eeprombit = 1
 
 /*--------------------------       DEPRECATED parameters for reference only      ----------------------------------------------------*/
 
@@ -57,7 +58,7 @@
 #endif
 
 #ifdef APM     //set up latest at time of release
-  #define MAVLINK
+//  #define MAVLINK
 #endif
 
 // The unit of current varies across implementations.  There are effectively three set:
