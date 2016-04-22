@@ -318,13 +318,16 @@ void syncmav(){
 // flight mode
   mav_custom_mode=0;
   if(toggleModeItems[1].getValue()> 0){//stab
-    mav_custom_mode =2;
+    mav_custom_mode =0;
   }
-  if(toggleModeItems[6].getValue()> 0){//RTH
-    mav_custom_mode =11;
+  else if(toggleModeItems[6].getValue()> 0){//RTH
+    mav_custom_mode =6;
   }
-  if(toggleModeItems[7].getValue()> 0){//HOLD
-    mav_custom_mode =1; //circle
+  else if(toggleModeItems[7].getValue()> 0){//HOLD
+    mav_custom_mode =5;                //loit
+  }
+  else{
+    mav_custom_mode =1;                //acro
   }
   
   //for others https://github.com/geeksville/arduleader/blob/master/thirdparty/org.mavlink.library/generated/org/mavlink/messages/MAV_SYS_STATUS_SENSOR.java 
@@ -356,86 +359,8 @@ void syncmav(){
   mavdata_voltage=int(sVBat * 1000);
   mavdata_amperage=mavdata_throttle*100;
   mavdata_remaining=66;
-/*
-        int(MW_Pitch_Roll.arrayValue()[0])*10) //pitch
-        int(MW_Pitch_Roll.arrayValue()[1])*10) /roll
-        MwHeading. 
-        headSerialReply(MSP_ANALOG, 7);
-        serialize8(int(sVBat * 10));
-        serialize16(0);
-        serialize16(int(sMRSSI));
-        serialize16(int(map(Throttle_Yaw.arrayValue()[1],1000,2000,0,50000)));
-        serialize8(wpno);
-        headSerialReply(MSP_RAW_GPS,16);
-        serialize8(int(SGPS_FIX.arrayValue()[0]));
-        serialize8(int(SGPS_numSat.value()));
-        GPSstartlat=GPSstartlat+100;
-        GPSstartlon=GPSstartlon-100;
-        serialize32(GPSstartlat);
-        serialize32(GPSstartlon);
-        serialize16(int(SGPS_altitude.value()/100));
-        serialize16(int(SGPS_speed.value()));
-        serialize16(MwHeading*10);     
-        if(confItem[GetSetting("S_GPSTIME")].value()>0)
-          headSerialReply(MSP_COMP_GPS,9);
-        else
-        headSerialReply(MSP_COMP_GPS,5);
-        serialize16(int(SGPS_distanceToHome.value()));
-        int GPSheading = int(SGPSHeadHome.value());
-        if(GPSheading < 0) GPSheading += 360;
-        serialize16(GPSheading);
-        serialize8(0);
-        serialize32(osdtime);
-        serialize32(int(sAltitude) *100);
-        serialize16(int(sVario) *10);     
-*/
-        GPSstartlat=GPSstartlat+100;
-        GPSstartlon=GPSstartlon-100;
+  GPSstartlat=GPSstartlat+100;
+  GPSstartlon=GPSstartlon-100;
 
 }
 
-
-/*
-apm_mav_type      = mavlink_msg_heartbeat_get_type(&msg);
-                    uav_flightmode = (uint8_t)mavlink_msg_heartbeat_get_custom_mode(&msg);
-                    if (apm_mav_type == 2)    //ArduCopter MultiRotor or ArduCopter Heli
-                    {                         
-                        switch (uav_flightmode) {
-                            case 0: uav_flightmode = 2;   break;      //Stabilize 
-                            case 1: uav_flightmode = 1;   break;      //Acro 
-                            case 2: uav_flightmode = 8;   break;      //Alt Hold
-                            case 3: uav_flightmode = 10;  break;      //Auto
-                            case 4: uav_flightmode = 10;  break;      //Guided -> Auto
-                            case 5: uav_flightmode = 9;   break;      //Loiter
-                            case 6: uav_flightmode = 13;  break;      //RTL
-                            case 7: uav_flightmode = 12;  break;      //Circle
-                            case 8: uav_flightmode = 9 ;  break;      //Position -> Loiter
-                            case 9: uav_flightmode = 15;  break;      //Land
-                            case 10: uav_flightmode = 9;  break;      //OF LOiter
-                            case 11: uav_flightmode = 5;  break;      //Drift -> Stabilize1
-                            case 12: uav_flightmode = 6;  break;      //Sport -> Stabilize2
-                            default: uav_flightmode = 19; break;      //Unknown                      
-                        }
-                    }
-                    else if (apm_mav_type == 1)    //ArduPlane
-                    {
-                        switch (uav_flightmode) {
-                            case 0:                       break;       //Manual
-                            case 1:  uav_flightmode = 12; break;       //Circle
-                            case 2:                       break;       //Stabilize
-                            case 5:  uav_flightmode = 16; break;       //FlyByWire A
-                            case 6:  uav_flightmode = 17; break;       //FlyByWire B
-                            case 10:                      break;       //Auto
-                            case 11: uav_flightmode = 13; break;       //RTH
-                            case 12: uav_flightmode = 9;  break;       //Loiter
-                            default: uav_flightmode = 19; break;       //Unknown
-                        }
-                    }
-                    //Mode (arducoper armed/disarmed)
-                    uav_arm = mavlink_msg_heartbeat_get_base_mode(&msg);
-                    if (getBit(uav_arm,7)) 
-                        uav_arm = 1;
-                    else 
-                        uav_arm = 0;
- */
- 

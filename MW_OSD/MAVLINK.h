@@ -1,31 +1,3 @@
-#define MAVLINK_MSG_ID_HEARTBEAT 0
-#define MAVLINK_MSG_ID_HEARTBEAT_MAGIC 50
-#define AVLINK_MSG_ID_HEARTBEAT_LEN 9
-#define MAVLINK_MSG_ID_VFR_HUD 74
-#define MAVLINK_MSG_ID_VFR_HUD_MAGIC 20
-#define MAVLINK_MSG_ID_VFR_HUD_LEN 20
-#define MAVLINK_MSG_ID_ATTITUDE 30
-#define MAVLINK_MSG_ID_ATTITUDE_MAGIC 39
-#define MAVLINK_MSG_ID_ATTITUDE_LEN 28
-#define MAVLINK_MSG_ID_GPS_RAW_INT 24
-#define MAVLINK_MSG_ID_GPS_RAW_INT_MAGIC 24
-#define MAVLINK_MSG_ID_GPS_RAW_INT_LEN 30
-#define MAVLINK_MSG_ID_RC_CHANNELS_RAW 35
-#define MAVLINK_MSG_ID_RC_CHANNELS_RAW_MAGIC 244
-#define MAVLINK_MSG_ID_RC_CHANNELS_RAW_LEN 22    
-#define MAVLINK_MSG_ID_SYS_STATUS 1
-#define MAVLINK_MSG_ID_SYS_STATUS_MAGIC 124
-#define MAVLINK_MSG_ID_SYS_STATUS_LEN 31  
-#define  LAT  0
-#define  LON  1
-
-uint8_t  mav_message_length;
-uint8_t  mav_message_cmd;
-uint16_t mav_serial_checksum;
-int32_t  GPS_home[2];
-int16_t  GPS_altitude_home;                            
-uint8_t  GPS_fix_HOME;
-float    GPS_scaleLonDown;
 
 
 void mav_checksum(uint8_t val) {
@@ -57,11 +29,11 @@ int32_t serialbufferint(uint8_t offset){
 
 
 void GPS_distance_cm_bearing(int32_t* lat1, int32_t* lon1, int32_t* lat2, int32_t* lon2,uint32_t* dist, int32_t* bearing) {
-  float dLat = *lat2 - *lat1;                                    // difference of latitude in 1/10 000 000 degrees
+  float dLat = *lat2 - *lat1;                                 // difference of latitude in 1/10 000 000 degrees
   float dLon = (float)(*lon2 - *lon1) * GPS_scaleLonDown;
   *dist = sqrt(sq(dLat) + sq(dLon)) * 1.113195;
 
-  *bearing = 9000.0f + atan2(-dLat, dLon) * 5729.57795f;      //Convert the output redians to 100xdeg
+  *bearing = 9000.0f + atan2(-dLat, dLon) * 5729.57795f;      //Convert the output radians to 100xdeg
   if (*bearing < 0) *bearing += 36000;
 }
 
@@ -76,7 +48,7 @@ void GPS_reset_home_position() {
   GPS_home[LAT] = GPS_latitude;
   GPS_home[LON] = GPS_longitude;
   GPS_altitude_home = GPS_altitude;
-//  GPS_calc_longitude_scaling(GPS_home[LAT]);
+  //  GPS_calc_longitude_scaling(GPS_home[LAT]);
 }
 
 
@@ -87,7 +59,6 @@ void serialMAVCheck(){
   int16_t MwHeading360;
   uint8_t apm_mav_type=0;
   uint8_t osd_mode=serialbufferint(0);
-  String mode_str;
   switch(mav_message_cmd) {
   case MAVLINK_MSG_ID_HEARTBEAT:
     mode.armed      = (1<<0);
@@ -96,45 +67,7 @@ void serialMAVCheck(){
     mode.gpsmission = (1<<6);
     MwSensorActive&=0xFFFFFF8E;
     apm_mav_type=serialBuffer[4];   
-        if (apm_mav_type == 2){ //ArduCopter MultiRotor or ArduCopter Heli
-        if (osd_mode == 0)       mode_str = "stab"; //Stabilize: hold level position
-        else if (osd_mode == 1)  mode_str = "acro"; //Acrobatic: rate control
-        else if (osd_mode == 2)  mode_str = "alth"; //Altitude Hold: auto control
-        else if (osd_mode == 3)  mode_str = "auto"; //Auto: auto control
-        else if (osd_mode == 4)  mode_str = "guid"; //Guided: auto control
-        else if (osd_mode == 5)  mode_str = "loit"; //Loiter: hold a single location
-        else if (osd_mode == 6)  mode_str = "retl"; //Return to Launch: auto control
-        else if (osd_mode == 7)  mode_str = "circ"; //Circle: auto control
-        else if (osd_mode == 8)  mode_str = "posi"; //Position: auto control
-        else if (osd_mode == 9)  mode_str = "land"; //Land:: auto control
-        else if (osd_mode == 10) mode_str = "oflo"; //OF_Loiter: hold a single location using optical flow sensor
-        else if (osd_mode == 11) mode_str = "drif"; //Drift mode: 
-        else if (osd_mode == 13) mode_str = "sprt"; //Sport: earth frame rate control
-        else if (osd_mode == 14) mode_str = "flip"; //Flip: flip the vehicle on the roll axis
-        else if (osd_mode == 15) mode_str = "atun"; //Auto Tune: autotune the vehicle's roll and pitch gains
-        else if (osd_mode == 16) mode_str = "hybr"; //Hybrid: position hold with manual override
-    } else if(apm_mav_type == 1){ //ArduPlane
-        if (osd_mode == 0)       mode_str = "manu"; //Manual
-        else if (osd_mode == 1)  mode_str = "circ"; //Circle
-        else if (osd_mode == 2)  mode_str = "stab"; //Stabilize
-        else if (osd_mode == 3)  mode_str = "trng"; //Training
-        else if (osd_mode == 4)  mode_str = "acro"; //Acro
-        else if (osd_mode == 5)  mode_str = "fbwa"; //Fly_By_Wire_A
-        else if (osd_mode == 6)  mode_str = "fbwb"; //Fly_By_Wire_B
-        else if (osd_mode == 7)  mode_str = "crui"; //Cruise
-        else if (osd_mode == 8)  mode_str = "atun"; //Auto Tune
-        else if (osd_mode == 10) mode_str = "auto"; //Auto
-        else if (osd_mode == 11) mode_str = "retl"; //Return to Launch
-        else if (osd_mode == 12) mode_str = "loit"; //Loiter
-        else if (osd_mode == 15) mode_str = "guid"; //Guided
-        else if (osd_mode == 16) mode_str = "init"; //Initializing
-    }
-    if (serialbufferint(0)==11)      //RTH
-      MwSensorActive|=(1<<4);
-    if (serialbufferint(0)==1)       //HOLD
-      MwSensorActive|=(1<<5);
-    if (serialbufferint(0)==99)      //MISSION
-      MwSensorActive|=(1<<6);
+    apm_mav_mode=serialbufferint(0);
     if (serialBuffer[6]&(1<<7)){     //armed
       MwSensorActive|=(1<<0);
       armed=1;
@@ -143,6 +76,14 @@ void serialMAVCheck(){
       armed=0;
       GPS_fix_HOME=0;
     }
+    /* maybe implement MWOSD mode icons ?
+    if (apm_mav_mode==11)      //RTH
+     MwSensorActive|=(1<<4);
+     if (apm_mav_mode==1)       //HOLD
+     MwSensorActive|=(1<<5);
+     if (apm_mav_mode==99)      //MISSION
+     MwSensorActive|=(1<<6);
+     */
     break;
   case MAVLINK_MSG_ID_VFR_HUD:
     GPS_speed=(int16_t)serialbufferfloat(4)*100;    // m/s-->cm/s 
@@ -180,11 +121,11 @@ void serialMAVCheck(){
       GPS_directionToHome = dir/100;
       //      GPS_altitude =  GPS_altitude- GPS_altitude_home;
       //      MwAltitude = (int32_t)GPS_altitude *100;
-//      int16_t MwHeading360=GPS_ground_course/10;
-//      if (MwHeading360>180)
-//        MwHeading360 = MwHeading360-360;
- //     MwHeading   = MwHeading360;
-//      gpsvario(); 
+      //      int16_t MwHeading360=GPS_ground_course/10;
+      //      if (MwHeading360>180)
+      //        MwHeading360 = MwHeading360-360;
+      //     MwHeading   = MwHeading360;
+      //      gpsvario(); 
     } 
     break;
   case MAVLINK_MSG_ID_RC_CHANNELS_RAW:
@@ -239,7 +180,6 @@ void serialMAVreceive(uint8_t c)
     MAV_PAYLOAD,
     MAV_CHECKSUM,
   }
-
   mav_state = MAV_IDLE;
 
   if ((mav_state == MAV_IDLE)||(mav_state == MAV_PAYLOAD))
@@ -288,14 +228,13 @@ void serialMAVreceive(uint8_t c)
     mav_message_cmd = c;
     mav_state = MAV_HEADER_MSG;
   }
-  else if (mav_state == MAV_HEADER_MSG) // header received, its a packet!
+  else if (mav_state == MAV_HEADER_MSG)
   {
     serialBuffer[mav_payload_index]=c;
     mav_payload_index++;
     if (mav_payload_index==mav_message_length){  // end of data
       mav_state = MAV_PAYLOAD;
     }
-
   }
   else if (mav_state == MAV_PAYLOAD)
   {
@@ -326,7 +265,6 @@ void serialMAVreceive(uint8_t c)
         mav_magic = MAVLINK_MSG_ID_SYS_STATUS_MAGIC;
         break;
       }
-
       mav_checksum(mav_magic);
       if(mav_checksum_rcv == mav_serial_checksum) {
         serialMAVCheck();
@@ -335,6 +273,7 @@ void serialMAVreceive(uint8_t c)
     }
   }
 }
+
 
 
 
