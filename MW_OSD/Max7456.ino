@@ -226,6 +226,40 @@ void MAX7456_WriteString(const char *string, int Adresse)
   }
 }
 
+
+void MAX7456_VideoOFF()
+{
+  // GSK Custom Function to turn off video passthrough (to make OSD clearer during menu operations
+  // for example
+
+  digitalWrite(MAX7456SELECT,LOW);
+  spi_transfer(VM0_reg);
+  if (Settings[S_VIDEOSIGNALTYPE]){
+    spi_transfer((OSD_ENABLE|VIDEO_MODE_PAL) | SYNC_MODE_INTERNAL);
+  }
+  else{
+    spi_transfer((OSD_ENABLE|VIDEO_MODE_NTSC) | SYNC_MODE_INTERNAL);
+  }
+  digitalWrite(MAX7456SELECT,HIGH);
+  delay(100);
+}
+
+void MAX7456_VideoON()
+{
+  // GSK Custom Function to turn on video passthrough after display of a menu
+
+  digitalWrite(MAX7456SELECT,LOW);
+  spi_transfer(VM0_reg);
+  if (Settings[S_VIDEOSIGNALTYPE]){
+    spi_transfer((OSD_ENABLE|VIDEO_MODE_PAL) | SYNC_MODE_EXTERNAL);
+  }
+  else{
+    spi_transfer((OSD_ENABLE|VIDEO_MODE_NTSC) | SYNC_MODE_EXTERNAL);
+  }
+  digitalWrite(MAX7456SELECT,HIGH);
+  delay(100);
+}
+
 // Copy string from progmem into the screen buffer
 void MAX7456_WriteString_P(const char *string, int Adresse)
 {
@@ -399,4 +433,5 @@ void updateFont()
   }
 }
 #endif
+
 

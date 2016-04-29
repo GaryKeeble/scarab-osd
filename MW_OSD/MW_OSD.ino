@@ -114,6 +114,7 @@ boolean ledstatus=HIGH;
 //uint8_t Settings[1];
 #endif
 
+bool VideoPassthrough = false; // GSK - If on, then the background is grey, if set off, then the background should be video passthrough
 
 
 //------------------------------------------------------------------------
@@ -402,6 +403,7 @@ void loop()
 #define INTRO_DELAY 8
 #endif
     if( allSec < INTRO_DELAY ){
+      if(!VideoPassthrough) { MAX7456_VideoOFF(); VideoPassthrough=true;} // GSK background selection
       displayIntro();
       timer.lastCallSign=onTime-CALLSIGNINTERVAL;
     }  
@@ -429,10 +431,13 @@ void loop()
 #endif //HIDESUMMARY      
       if(configMode)
       {
+        if(!VideoPassthrough) { MAX7456_VideoOFF(); VideoPassthrough=true;} // GSK background selection
         displayConfigScreen();
       }
       else
       {
+        if(VideoPassthrough) { MAX7456_VideoON(); VideoPassthrough=false;} // GSK background selection
+        
         setMspRequests();
 #if defined USE_AIRSPEED_SENSOR
         useairspeed();
